@@ -1,0 +1,77 @@
+plaid_primary,plaid_detailed,chirp_top_level_category,chirp_category,match_quality,notes
+INCOME,INCOME_WAGES,Income,Paycheck,high,Stable payroll-like.
+INCOME,INCOME_UNEMPLOYMENT,Income,Paycheck,medium,No exact Chirp leaf; Paycheck or Bonus as policy.
+INCOME,INCOME_INTEREST_EARNED,Income,Interest Income,high,
+INCOME,INCOME_DIVIDENDS,Income,Interest Income,medium,Or map to Investments/Dividend & Cap Gains if split.
+INCOME,INCOME_RETIREMENT_PENSION,Income,Paycheck,medium,No pension leaf; Paycheck or separate bucket in UW engine.
+INCOME,INCOME_TAX_REFUND,Income,Reimbursement,medium,Often non-recurring; exclude from stable income per policy.
+TRANSFER_IN,TRANSFER_IN_ACCOUNT_TRANSFER,Transfer,Transfer,high,Internal/external movement; not income by default.
+TRANSFER_IN,TRANSFER_IN_CASH_ADVANCES_AND_LOANS,Transfer,Transfer,low,Chirp often uses generic Transfer; use text/counterparty for loan proceed vs P2P.
+TRANSFER_OUT,TRANSFER_OUT_ACCOUNT_TRANSFER,Transfer,Transfer,high,
+LOAN_PAYMENTS,LOAN_PAYMENTS_PERSONAL_LOAN_PAYMENT,Transfer,Credit Card Payment,low,No personal-loan leaf; use Transfer + rules or Debt overlay.
+LOAN_PAYMENTS,LOAN_PAYMENTS_CREDIT_CARD_PAYMENT,Transfer,Credit Card Payment,high,
+LOAN_PAYMENTS,LOAN_PAYMENTS_MORTGAGE_PAYMENT,Transfer,Mortgage Payment,high,
+LOAN_PAYMENTS,LOAN_PAYMENTS_STUDENT_LOAN_PAYMENT,Education,Student Loan,high,
+LOAN_PAYMENTS,LOAN_PAYMENTS_CAR_PAYMENT,Auto & Transport,Auto Payment,high,
+LOAN_PAYMENTS,LOAN_PAYMENTS_OTHER_PAYMENT,Transfer,Transfer,low,Requires description/MCC.
+BANK_FEES,BANK_FEES_INSUFFICIENT_FUNDS,Fees & Charges,Banking Fee,medium,Also use is_overdraft_fee / text if available.
+BANK_FEES,BANK_FEES_OVERDRAFT,Fees & Charges,Banking Fee,medium,
+BANK_FEES,BANK_FEES_ATM_FEES,Fees & Charges,ATM Fee,high,
+BANK_FEES,BANK_FEES_OTHER,Fees & Charges,Service Fee,low,
+ENTERTAINMENT,ENTERTAINMENT_CASINOS_AND_GAMBLING,Entertainment,Amusement,medium,No gambling leaf in Chirp list; flag as risk in UW layer.
+ENTERTAINMENT,ENTERTAINMENT_OTHER,Entertainment,Movies & DVDs,low,Default discretionary entertainment.
+FOOD_AND_DRINK,FOOD_AND_DRINK_GROCERIES,Food & Dining,Groceries,high,
+FOOD_AND_DRINK,FOOD_AND_DRINK_FAST_FOOD,Food & Dining,Fast Food,high,
+FOOD_AND_DRINK,FOOD_AND_DRINK_RESTAURANT,Food & Dining,Restaurants,high,
+FOOD_AND_DRINK,FOOD_AND_DRINK_COFFEE,Food & Dining,Coffee Shops,high,
+FOOD_AND_DRINK,FOOD_AND_DRINK_ALCOHOL,Food & Dining,Alcohol & Bars,high,
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_SUPERSTORES,Shopping,Shopping,medium,
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_ONLINE_MARKETPLACES,Shopping,Shopping,medium,
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES,Shopping,Clothing,high,
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_ELECTRONICS,Shopping,Electronics & Software,high,
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_OTHER,Shopping,Shopping,low,
+HOME_IMPROVEMENT,HOME_IMPROVEMENT_FURNITURE,Home,Furnishings,high,
+HOME_IMPROVEMENT,HOME_IMPROVEMENT_HARDWARE,Home,Home Improvement,high,
+HOME_IMPROVEMENT,HOME_IMPROVEMENT_SECURITY,Home,Home Services,medium,
+RENT_AND_UTILITIES,RENT_AND_UTILITIES_RENT,Home,Mortgage & Rent,high,Rent vs mortgage not split in Chirp leaf name.
+RENT_AND_UTILITIES,RENT_AND_UTILITIES_MORTGAGE_PAYMENT,Transfer,Mortgage Payment,high,Plaid separates; Chirp uses Transfer leaf for payment rail.
+RENT_AND_UTILITIES,RENT_AND_UTILITIES_GAS_AND_ELECTRICITY,Bills & Utilities,Utilities,high,
+RENT_AND_UTILITIES,RENT_AND_UTILITIES_INTERNET_AND_CABLE,Bills & Utilities,Internet,medium,May map Television/Internet per descriptor.
+RENT_AND_UTILITIES,RENT_AND_UTILITIES_WATER,Bills & Utilities,Utilities,high,
+RENT_AND_UTILITIES,RENT_AND_UTILITIES_OTHER,Bills & Utilities,Utilities,low,
+TRANSPORTATION,TRANSPORTATION_GAS,Auto & Transport,Gas,high,
+TRANSPORTATION,TRANSPORTATION_PARKING,Auto & Transport,Parking,high,
+TRANSPORTATION,TRANSPORTATION_PUBLIC_TRANSIT,Auto & Transport,Public Transportation,high,
+TRANSPORTATION,TRANSPORTATION_TAXIS_AND_RIDE_SHARES,Travel,Rental Car & Taxi,medium,
+TRANSPORTATION,TRANSPORTATION_AUTOMOTIVE_MAINTENANCE,Auto & Transport,Service & Parts,high,
+MEDICAL,MEDICAL_PRIMARY_CARE,Health & Fitness,Doctor,high,
+MEDICAL,MEDICAL_DENTAL,Health & Fitness,Dentist,high,
+MEDICAL,MEDICAL_PHARMACY,Health & Fitness,Pharmacy,high,
+MEDICAL,MEDICAL_OTHER,Health & Fitness,Doctor,low,
+PERSONAL_CARE,PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS,Health & Fitness,Gym,high,Chirp puts Gym under Health & Fitness not Personal Care.
+PERSONAL_CARE,PERSONAL_CARE_HAIR_AND_BEAUTY,Personal Care,Hair,high,
+PERSONAL_CARE,PERSONAL_CARE_LAUNDRY_AND_DRY_CLEANING,Personal Care,Laundry,high,
+PERSONAL_CARE,PERSONAL_CARE_OTHER,Personal Care,Personal Care,low,
+TRAVEL,TRAVEL_FLIGHTS,Travel,Air Travel,high,
+TRAVEL,TRAVEL_LODGING,Travel,Hotel,high,
+TRAVEL,TRAVEL_RENTAL_CARS,Travel,Rental Car & Taxi,high,
+TRAVEL,TRAVEL_OTHER,Travel,Vacation,low,
+GENERAL_SERVICES,GENERAL_SERVICES_ACCOUNTING,Business Services,Legal,low,Or Legal/Advertising; weak match.
+GENERAL_SERVICES,GENERAL_SERVICES_INSURANCE,Financial,Life Insurance,low,May be non-life lines; use description.
+GENERAL_SERVICES,GENERAL_SERVICES_POSTAGE_AND_SHIPPING,Business Services,Shipping,high,
+GOVERNMENT_AND_NON_PROFIT,GOVERNMENT_AND_NON_PROFIT_TAX_PAYMENT,Taxes,Federal Tax,low,Level unknown; use description for fed/state/local.
+GOVERNMENT_AND_NON_PROFIT,GOVERNMENT_AND_NON_PROFIT_DONATIONS,Gifts & Donations,Charity,high,
+INCOME,INCOME_OTHER,Income,Paycheck,low,Requires review.
+FOOD_AND_DRINK,FOOD_AND_DRINK_RESTAURANT,Food & Dining,Food & Dining,medium,Generic food leaf; map to restaurant as closest match.
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_OTHER,Kids,Toys,medium,No Plaid toys leaf; general merchandise.
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_OTHER,Shopping,Sporting Goods,medium,No Plaid sporting goods leaf.
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_PET_SUPPLIES,Pets,Pets,high,
+GENERAL_SERVICES,GENERAL_SERVICES_INSURANCE,Health & Fitness,Health Insurance,high,
+UTILITIES,UTILITIES_COMMUNICATIONS,Bills & Utilities,Television,medium,Cable and TV services.
+UTILITIES,UTILITIES_COMMUNICATIONS,Bills & Utilities,Mobile Phone,high,
+ENTERTAINMENT,ENTERTAINMENT_MUSIC_AND_AUDIO,Entertainment,Music,high,
+GENERAL_SERVICES,GENERAL_SERVICES_OTHER,Financial,Financial,low,Generic financial services.
+GENERAL_MERCHANDISE,GENERAL_MERCHANDISE_OTHER,Business Services,Office Supplies,medium,
+TRANSFER_OUT,TRANSFER_OUT_OTHER,Uncategorized,Uncategorized,low,Cannot determine; default to transfer out.
+TRANSFER_IN,TRANSFER_IN_OTHER,Transfer,Transfer,low,
+TRANSFER_OUT,TRANSFER_OUT_OTHER,Transfer,Transfer,low,

@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chirp Credit — Underwriting Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --sb: 240px;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --side: #0f172a;
+  --side-hover: #1e293b;
+  --side-txt: #94a3b8;
+  --side-act: #38bdf8;
+  --pri: #0ea5e9;
+  --ok: #10b981; --ok-bg: #ecfdf5; --ok-br: #6ee7b7;
+  --warn: #f59e0b; --warn-bg: #fffbeb; --warn-br: #fcd34d;
+  --bad: #ef4444; --bad-bg: #fef2f2; --bad-br: #fca5a5;
+  --txt: #0f172a; --muted: #64748b; --border: #e2e8f0;
+  --sh1: 0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh2: 0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -1px rgba(0,0,0,.05);
+  --sh3: 0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -2px rgba(0,0,0,.04);
+  --r1:6px; --r2:10px; --r3:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sb);background:var(--side);display:flex;flex-direction:column;height:100vh;flex-shrink:0}
+.sb-logo{padding:22px 18px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
+.sb-logo-icon{width:34px;height:34px;background:var(--pri);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sb-logo-name{font-size:15px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.sb-logo-tag{font-size:10px;color:var(--side-txt);text-transform:uppercase;letter-spacing:.6px}
+.sb-nav{padding:14px 10px;flex:1}
+.sb-sec{font-size:10px;font-weight:600;color:#475569;letter-spacing:.8px;text-transform:uppercase;padding:0 8px;margin:14px 0 5px}
+.ni{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r1);cursor:pointer;color:var(--side-txt);font-size:13px;font-weight:500;transition:background .15s,color .15s;margin-bottom:2px;text-decoration:none;user-select:none}
+.ni:hover{background:var(--side-hover);color:#e2e8f0}
+.ni.active{background:rgba(14,165,233,.15);color:var(--side-act)}
+.ni-ic{font-size:15px;width:20px;text-align:center}
+.sb-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#475569}
+.sb-foot strong{color:#94a3b8;display:block;margin-bottom:2px}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 26px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:10}
+.topbar-bc{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.topbar-bc span{color:var(--txt);font-weight:600}
+.api-dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;margin-right:4px}
+
+/* ── VIEWS ── */
+.view{display:none;padding:22px 26px 36px;flex:1}
+.view.active{display:block}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ph h1{font-size:21px;font-weight:800}
+.ph p{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border-radius:var(--r1);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:opacity .15s,transform .1s}
+.btn:hover{opacity:.88}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-pri{background:var(--pri);color:#fff}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-warn{background:var(--warn);color:#fff}
+.btn-bad{background:var(--bad);color:#fff}
+.btn-out{background:transparent;border:1px solid var(--border);color:var(--txt)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-lg{padding:11px 22px;font-size:15px}
+
+/* ── DECISION BADGE ── */
+.db{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.db.APPROVE,.db.ACCEPT{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-br)}
+.db.REFER{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-br)}
+.db.DECLINE{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-br)}
+
+/* ── UPLOAD VIEW ── */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:4px}
+.upload-card{background:var(--card);border:2px dashed var(--border);border-radius:var(--r3);padding:34px 26px;display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative}
+.upload-card:hover,.upload-card.drag-over{border-color:var(--pri);background:#f0f9ff}
+.upload-card input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-ic{width:54px;height:54px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px}
+.upload-card h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.upload-card p{font-size:13px;color:var(--muted);line-height:1.5}
+.tbadge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.params-card{background:var(--card);border-radius:var(--r3);padding:18px 22px;margin-top:18px;box-shadow:var(--sh1)}
+.params-card h3{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:7px;color:var(--muted)}
+.pg{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.pf label{display:block;font-size:11.5px;font-weight:500;color:var(--muted);margin-bottom:4px}
+.pf input,.pf select{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r1);font-size:13px;font-family:inherit;color:var(--txt);background:var(--bg);outline:none}
+.pf input:focus,.pf select:focus{border-color:var(--pri);background:#fff}
+
+/* ── RESULT HEADER ── */
+.rh{background:var(--card);border-radius:var(--r3);padding:18px 22px;margin-bottom:14px;box-shadow:var(--sh1);display:flex;align-items:center;justify-content:space-between}
+.rh h2{font-size:17px;font-weight:700;margin-bottom:3px}
+.rh p{font-size:12px;color:var(--muted)}
+
+/* ── SCORE SECTION ── */
+.result-top{display:grid;grid-template-columns:270px 1fr;gap:14px;margin-bottom:14px}
+.score-card{background:var(--card);border-radius:var(--r3);padding:22px 20px;box-shadow:var(--sh1);display:flex;flex-direction:column;align-items:center;text-align:center}
+.gauge-wrap{position:relative;width:174px;height:96px;margin-bottom:6px}
+.gauge-num{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-size:34px;font-weight:800;line-height:1}
+.dec-lbl{font-size:21px;font-weight:800;margin-top:6px}
+.dec-lbl.APPROVE,.dec-lbl.ACCEPT{color:var(--ok)}
+.dec-lbl.REFER{color:var(--warn)}
+.dec-lbl.DECLINE{color:var(--bad)}
+.risk-lbl{font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+.flag-box{width:100%;text-align:left;margin-top:12px}
+.flag-box h5{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.flag-pill{display:flex;align-items:center;gap:5px;font-size:11.5px;padding:4px 8px;border-radius:5px;background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-br);margin-bottom:3px}
+.ok-flag{color:var(--ok);font-size:12.5px;margin-top:8px}
+.sb-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;width:100%}
+.sb-cell{background:#f8fafc;border-radius:5px;padding:8px 10px;text-align:left}
+.sb-cell .sl{font-size:10.5px;color:var(--muted);margin-bottom:2px}
+.sb-cell .sv{font-size:17px;font-weight:700}
+.sb-cell .sm{font-size:10px;color:var(--muted)}
+.metrics-stack{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mc{background:var(--card);border-radius:var(--r2);padding:15px 18px;box-shadow:var(--sh1);border-left:3px solid transparent}
+.mc.income{border-left-color:var(--ok)}
+.mc.expense{border-left-color:var(--warn)}
+.mc.debt{border-left-color:var(--bad)}
+.mc.balance{border-left-color:var(--pri)}
+.mc-lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+.mc-val{font-size:21px;font-weight:700;margin-bottom:3px}
+.mc-sub{font-size:11px;color:var(--muted);line-height:1.4}
+
+/* ── DETAIL CARDS ── */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.dc{background:var(--card);border-radius:var(--r2);padding:16px 18px;box-shadow:var(--sh1)}
+.dc h4{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:11px;display:flex;align-items:center;gap:5px}
+.dr{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12.5px;border-bottom:1px solid #f1f5f9}
+.dr:last-child{border-bottom:none}
+.dr .k{color:var(--muted)}
+.dr .v{font-weight:600}
+.dr .v.neg{color:var(--bad)}
+.dr .v.pos{color:var(--ok)}
+.dr .v.wrn{color:var(--warn)}
+
+/* ── BOTTOM GRID ── */
+.bottom-grid{display:grid;grid-template-columns:290px 1fr;gap:14px;margin-bottom:14px}
+.chart-card,.txn-card{background:var(--card);border-radius:var(--r2);padding:16px 18px;box-shadow:var(--sh1)}
+.chart-card h4,.txn-card h4{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:12px}
+.chart-wrap{position:relative;height:170px;display:flex;align-items:center;justify-content:center}
+.legend{margin-top:10px;display:flex;flex-wrap:wrap;gap:7px}
+.li{display:flex;align-items:center;gap:5px;font-size:11.5px}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.txn-table{width:100%;border-collapse:collapse;font-size:12px}
+.txn-table th{text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);padding:5px 7px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px}
+.txn-table td{padding:6px 7px;border-bottom:1px solid #f8fafc;vertical-align:middle}
+.txn-table tr:hover td{background:#f8fafc}
+.cc{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:500}
+.cc-income{background:#ecfdf5;color:#059669}
+.cc-expense{background:#fff7ed;color:#c2410c}
+.cc-transfer{background:#eff6ff;color:#1d4ed8}
+.cc-debt{background:#fef2f2;color:#dc2626}
+.cc-essential{background:#f5f3ff;color:#7c3aed}
+.txn-scroll{overflow-x:auto;max-height:210px;overflow-y:auto}
+
+/* ── UNDERWRITER PANEL ── */
+.uw-panel{background:var(--card);border-radius:var(--r3);padding:18px 22px;box-shadow:var(--sh3);border-top:3px solid var(--border);margin-top:4px}
+.uw-panel h3{font-size:13.5px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.uw-grid{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:flex-end}
+.uw-label{font-size:11.5px;font-weight:500;color:var(--muted);display:block;margin-bottom:4px}
+.uw-ta{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r1);font-size:13px;font-family:inherit;resize:none;height:66px;outline:none}
+.uw-ta:focus{border-color:var(--pri)}
+.uw-btns{display:flex;flex-direction:column;gap:7px}
+.uw-ok{display:none;align-items:center;gap:9px;padding:11px 14px;background:var(--ok-bg);border:1px solid var(--ok-br);border-radius:var(--r2);font-size:13px;font-weight:600;color:#065f46;margin-top:10px}
+.uw-ok.show{display:flex}
+
+/* ── BULK VIEW ── */
+.bulk-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.sc{background:var(--card);border-radius:var(--r2);padding:16px 18px;box-shadow:var(--sh1);cursor:pointer;transition:box-shadow .2s;border-top:3px solid transparent}
+.sc:hover{box-shadow:var(--sh2)}
+.sc.active{box-shadow:var(--sh2)}
+.sc.all{border-top-color:var(--pri)}.sc.approve{border-top-color:var(--ok)}.sc.refer{border-top-color:var(--warn)}.sc.decline{border-top-color:var(--bad)}
+.sc-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+.sc-num{font-size:30px;font-weight:800;line-height:1;margin-bottom:2px}
+.sc.all .sc-num{color:var(--pri)}.sc.approve .sc-num{color:var(--ok)}.sc.refer .sc-num{color:var(--warn)}.sc.decline .sc-num{color:var(--bad)}
+.sc-sub{font-size:11px;color:var(--muted)}
+.bulk-table-card{background:var(--card);border-radius:var(--r3);box-shadow:var(--sh1);overflow:hidden}
+.bulk-th{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.bulk-th h3{font-size:13.5px;font-weight:600}
+.srch{padding:6px 11px;border:1px solid var(--border);border-radius:var(--r1);font-size:12.5px;font-family:inherit;outline:none;width:210px}
+.srch:focus{border-color:var(--pri)}
+.apps-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.apps-table th{text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);padding:9px 14px;background:#f8fafc;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.apps-table td{padding:11px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.apps-table tr:hover td{background:#f8fafc}
+.sp{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#fff;flex-shrink:0}
+.sp.hi{background:var(--ok)}.sp.mid{background:var(--warn)}.sp.lo{background:var(--bad)}
+.pb-wrap{background:#f1f5f9;border-radius:20px;height:5px;width:70px;overflow:hidden;display:inline-block}
+.pb-fill{height:100%;border-radius:20px}
+
+/* ── MODAL ── */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal-box{background:var(--bg);border-radius:var(--r3);width:100%;max-width:980px;box-shadow:0 25px 50px rgba(0,0,0,.22);overflow:hidden;margin:auto}
+.modal-hdr{background:var(--card);padding:15px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.modal-hdr h3{font-size:15px;font-weight:700}
+.modal-close{width:28px;height:28px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.modal-body{padding:18px 22px}
+
+/* ── LOADING ── */
+.loading-ov{display:none;position:fixed;inset:0;background:rgba(255,255,255,.88);z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.loading-ov.open{display:flex}
+.spinner{width:42px;height:42px;border:4px solid var(--border);border-top-color:var(--pri);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-ov p{font-size:14px;font-weight:600;color:var(--txt)}
+.loading-ov small{font-size:12px;color:var(--muted)}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:22px;right:22px;z-index:300;display:flex;flex-direction:column;gap:7px}
+.toast{background:var(--txt);color:#fff;padding:11px 16px;border-radius:var(--r2);font-size:12.5px;font-weight:500;box-shadow:var(--sh3);display:flex;align-items:center;gap:7px;animation:slid .2s ease;max-width:290px}
+.toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
+@keyframes slid{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── UTILS ── */
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.flex{display:flex}.aic{align-items:center}.gap8{gap:8px}.gap10{gap:10px}
+</style>
+</head>
+<body>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🐦</div>
+    <div>
+      <div class="sb-logo-name">Chirp Credit</div>
+      <div class="sb-logo-tag">Underwriting</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Workspace</div>
+    <a class="ni active" onclick="showView('upload',this)">
+      <span class="ni-ic">📤</span>New Assessment
+    </a>
+    <a class="ni" id="nav-single" style="display:none" onclick="showView('single',this)">
+      <span class="ni-ic">👤</span>Single Result
+    </a>
+    <a class="ni" id="nav-bulk" style="display:none" onclick="showView('bulk',this)">
+      <span class="ni-ic">📦</span>Bulk Results
+    </a>
+    <div class="sb-sec">Reference</div>
+    <a class="ni" onclick="showView('pricing',this)">
+      <span class="ni-ic">💰</span>Pricing Schedule
+    </a>
+  </nav>
+  <div class="sb-foot">
+    <strong>Chirp OB Engine v1.0</strong>
+    Requires API server on port 8000
+  </div>
+</aside>
+
+<!-- ══════════ MAIN ══════════ -->
+<main class="main">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-bc" id="breadcrumb"><span>New Assessment</span></div>
+    <div class="flex aic gap8" style="font-size:12px;color:var(--muted)">
+      API&nbsp;<span id="api-dot" class="api-dot"></span><span id="api-lbl" style="font-weight:600">checking…</span>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: UPLOAD ══════ -->
+  <div id="view-upload" class="view active">
+    <div class="ph">
+      <div>
+        <h1>New Assessment</h1>
+        <p>Upload a Chirp Open Banking file to score, categorise, and review</p>
+      </div>
+    </div>
+
+    <div class="upload-grid">
+      <div class="upload-card" id="single-zone">
+        <input type="file" id="single-input" accept=".json,.xml" onchange="handleSingle(this.files[0])">
+        <div class="upload-ic" style="background:#e0f2fe">📄</div>
+        <h3>Single Application</h3>
+        <p>Upload one JSON or XML Open Banking file for a full underwriting decision</p>
+        <div class="flex gap8 mt8" style="flex-wrap:wrap;justify-content:center">
+          <span class="tbadge" style="background:#e0f2fe;color:#0369a1">JSON</span>
+          <span class="tbadge" style="background:#e0f2fe;color:#0369a1">XML</span>
+        </div>
+        <button class="btn btn-pri mt12" style="pointer-events:none">Choose file or drag &amp; drop</button>
+      </div>
+
+      <div class="upload-card" id="bulk-zone">
+        <input type="file" id="bulk-input" accept=".zip" onchange="handleBulk(this.files[0])">
+        <div class="upload-ic" style="background:#fef3c7">📦</div>
+        <h3>Bulk Processing</h3>
+        <p>Upload a ZIP archive containing multiple JSON/XML files — all scored at once</p>
+        <div class="flex gap8 mt8" style="flex-wrap:wrap;justify-content:center">
+          <span class="tbadge" style="background:#fef3c7;color:#92400e">ZIP</span>
+        </div>
+        <button class="btn btn-warn mt12" style="pointer-events:none">Choose ZIP or drag &amp; drop</button>
+      </div>
+    </div>
+
+    <div class="params-card">
+      <h3>⚙️ Scoring Parameters</h3>
+      <div class="pg">
+        <div class="pf">
+          <label>Requested Amount (£)</label>
+          <input type="number" id="p-amount" value="500" min="300" max="1000" step="100">
+        </div>
+        <div class="pf">
+          <label>Term (months)</label>
+          <select id="p-term">
+            <option value="3">3 months</option>
+            <option value="4" selected>4 months</option>
+            <option value="5">5 months</option>
+            <option value="6">6 months</option>
+          </select>
+        </div>
+        <div class="pf">
+          <label>Lookback Period</label>
+          <select id="p-lookback">
+            <option value="1">1 month</option>
+            <option value="2">2 months</option>
+            <option value="3" selected>3 months</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+          </select>
+        </div>
+        <div class="pf">
+          <label>Pricing Cadence</label>
+          <select id="p-cadence">
+            <option value="monthly" selected>Monthly</option>
+            <option value="biweekly">Bi-weekly</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: SINGLE RESULT ══════ -->
+  <div id="view-single" class="view">
+    <div class="rh">
+      <div>
+        <h2 id="s-filename">Application</h2>
+        <p id="s-meta">Scored —</p>
+      </div>
+      <div class="flex aic gap10">
+        <span id="s-badge" class="db"></span>
+        <button class="btn btn-out btn-sm" id="btn-single-pdf" onclick="downloadPDF('single')">⬇ PDF</button>
+        <button class="btn btn-out btn-sm" onclick="downloadSingleCSV()">⬇ CSV</button>
+        <button class="btn btn-out btn-sm" onclick="showView('upload',document.querySelector('[onclick*=upload]'))">↩ New Upload</button>
+      </div>
+    </div>
+
+    <!-- Score + metrics -->
+    <div class="result-top">
+      <div class="score-card">
+        <div class="gauge-wrap">
+          <canvas id="gauge" width="174" height="96"></canvas>
+          <div class="gauge-num" id="g-num">—</div>
+        </div>
+        <div class="dec-lbl" id="g-dec"></div>
+        <div class="risk-lbl" id="g-risk"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px" id="g-amounts"></div>
+        <div class="flag-box" id="g-flags"></div>
+        <div class="sb-grid" id="g-breakdown"></div>
+      </div>
+
+      <div class="metrics-stack">
+        <div class="mc income">
+          <div class="mc-lbl">Monthly Income</div>
+          <div class="mc-val" id="m-inc">—</div>
+          <div class="mc-sub" id="m-inc-s">—</div>
+        </div>
+        <div class="mc expense">
+          <div class="mc-lbl">Monthly Expenses</div>
+          <div class="mc-val" id="m-exp">—</div>
+          <div class="mc-sub" id="m-exp-s">—</div>
+        </div>
+        <div class="mc debt">
+          <div class="mc-lbl">Monthly Debt</div>
+          <div class="mc-val" id="m-dbt">—</div>
+          <div class="mc-sub" id="m-dbt-s">—</div>
+        </div>
+        <div class="mc balance" id="mc-disp">
+          <div class="mc-lbl">Net Disposable /mo</div>
+          <div class="mc-val" id="m-disp">—</div>
+          <div class="mc-sub" id="m-disp-s">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail cards -->
+    <div class="detail-grid">
+      <div class="dc">
+        <h4>💳 Affordability</h4>
+        <div id="d-afford"></div>
+      </div>
+      <div class="dc">
+        <h4>💰 Income Breakdown</h4>
+        <div id="d-income"></div>
+      </div>
+      <div class="dc">
+        <h4>⚠️ Risk Indicators</h4>
+        <div id="d-risk"></div>
+      </div>
+    </div>
+
+    <!-- Charts + transactions -->
+    <div class="bottom-grid">
+      <div class="chart-card">
+        <h4>Transaction Categories</h4>
+        <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
+        <div class="legend" id="cat-legend"></div>
+      </div>
+      <div class="txn-card">
+        <h4 style="display:flex;justify-content:space-between">
+          <span>Recent Transactions</span>
+          <span id="txn-count" style="font-weight:400;color:#94a3b8"></span>
+        </h4>
+        <div class="txn-scroll">
+          <table class="txn-table">
+            <thead>
+              <tr><th>Date</th><th>Description</th><th>Amount</th><th>Category</th><th>Conf</th></tr>
+            </thead>
+            <tbody id="txn-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Underwriter panel -->
+    <div class="uw-panel">
+      <h3>✍️ Underwriter Decision</h3>
+      <div class="uw-grid">
+        <div>
+          <label class="uw-label">Comments / Notes</label>
+          <textarea class="uw-ta" id="uw-comment" placeholder="Add underwriting notes, conditions, or reasons for your decision…"></textarea>
+        </div>
+        <div class="uw-btns">
+          <button class="btn btn-ok" onclick="submitDecision('APPROVE')">✓&nbsp;Approve</button>
+          <button class="btn btn-warn" onclick="submitDecision('REFER')">⚡&nbsp;Refer</button>
+          <button class="btn btn-bad" onclick="submitDecision('DECLINE')">✗&nbsp;Decline</button>
+        </div>
+      </div>
+      <div class="uw-ok" id="uw-ok">
+        <span style="font-size:20px">✅</span>
+        <div>
+          <div id="uw-ok-txt"></div>
+          <div style="font-size:11.5px;font-weight:400;color:#065f46" id="uw-ok-time"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: BULK ══════ -->
+  <div id="view-bulk" class="view">
+    <div class="ph">
+      <div>
+        <h1>Bulk Review</h1>
+        <p id="bulk-lbl">Processing results</p>
+      </div>
+      <button class="btn btn-out btn-sm" id="btn-bulk-pdf" onclick="downloadPDF('bulk')">⬇ PDF</button>
+      <button class="btn btn-out btn-sm" onclick="downloadBulkCSV()">⬇ CSV</button>
+      <button class="btn btn-out btn-sm" onclick="downloadBulkJSON()">⬇ JSON</button>
+      <button class="btn btn-out btn-sm" onclick="showView('upload',document.querySelector('[onclick*=upload]'))">↩ New Upload</button>
+    </div>
+
+    <div class="bulk-summary">
+      <div class="sc all active" onclick="filterBulk('all',this)">
+        <div class="sc-lbl">Total</div>
+        <div class="sc-num" id="bc-all">0</div>
+        <div class="sc-sub">Applications</div>
+      </div>
+      <div class="sc approve" onclick="filterBulk('APPROVE',this)">
+        <div class="sc-lbl">Approve</div>
+        <div class="sc-num" id="bc-approve">0</div>
+        <div class="sc-sub">Eligible</div>
+      </div>
+      <div class="sc refer" onclick="filterBulk('REFER',this)">
+        <div class="sc-lbl">Refer</div>
+        <div class="sc-num" id="bc-refer">0</div>
+        <div class="sc-sub">Manual review</div>
+      </div>
+      <div class="sc decline" onclick="filterBulk('DECLINE',this)">
+        <div class="sc-lbl">Decline</div>
+        <div class="sc-num" id="bc-decline">0</div>
+        <div class="sc-sub">Not eligible</div>
+      </div>
+    </div>
+
+    <div class="bulk-table-card">
+      <div class="bulk-th">
+        <h3>Applications</h3>
+        <input class="srch" type="text" placeholder="🔍 Search filename…" oninput="searchBulk(this.value)">
+      </div>
+      <div style="overflow-x:auto">
+        <table class="apps-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Filename</th><th>Decision</th><th>Score</th>
+              <th>Income/mo</th><th>Expenses/mo</th><th>DTI %</th>
+              <th>Failed (45d)</th><th>Risk</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: PRICING ══════ -->
+  <div id="view-pricing" class="view">
+    <div class="ph"><div><h1>Pricing Schedule</h1><p>Current Chirp interest rate anchors and tiers</p></div></div>
+    <div style="background:var(--card);border-radius:var(--r3);padding:22px 26px;box-shadow:var(--sh1);max-width:680px" id="pricing-body">
+      <p style="color:var(--muted);font-size:13px">Loading…</p>
+    </div>
+  </div>
+
+</main><!-- /main -->
+
+<!-- ══════════ REVIEW MODAL ══════════ -->
+<div id="modal" class="modal-ov">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3 id="modal-title">Application Review</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-ov" id="loading">
+  <div class="spinner"></div>
+  <p id="load-txt">Processing…</p>
+  <small id="load-sub"></small>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- ══════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════ -->
+<script>
+/* ── state ── */
+const API = '';
+let singleData = null;
+let bulkRows = [];
+let bulkFilter = 'all';
+let bulkSearch = '';
+let bulkDisplayed = [];
+let gaugeChart = null;
+let catChartObj = null;
+let currentAppId = null;
+let currentModalFilename = null;
+
+/* ── view management ── */
+function showView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  const v = document.getElementById('view-' + name);
+  if (v) v.classList.add('active');
+  if (el) el.classList.add('active');
+  const labels = {upload:'New Assessment',single:'Single Result',bulk:'Bulk Review',pricing:'Pricing Schedule'};
+  document.getElementById('breadcrumb').innerHTML = `<span>${labels[name] || name}</span>`;
+  if (name === 'pricing') loadPricing();
+}
+
+/* ── API health ── */
+async function checkApi() {
+  try {
+    const r = await fetch(API + '/health', {signal: AbortSignal.timeout(3000)});
+    if (r.ok) { setApiStatus(true); } else throw 0;
+  } catch { setApiStatus(false); }
+}
+function setApiStatus(ok) {
+  const dot = document.getElementById('api-dot');
+  const lbl = document.getElementById('api-lbl');
+  dot.style.background = ok ? '#10b981' : '#ef4444';
+  lbl.textContent = ok ? 'Online' : 'Offline';
+  lbl.style.color = ok ? '#10b981' : '#ef4444';
+}
+
+/* ── drag & drop ── */
+function initDrop(zoneId, handler) {
+  const z = document.getElementById(zoneId);
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('drag-over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('drag-over'));
+  z.addEventListener('drop', e => {
+    e.preventDefault(); z.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) handler(f);
+  });
+}
+
+/* ── helpers ── */
+function params() {
+  return {
+    amount: parseFloat(document.getElementById('p-amount').value) || 500,
+    term: parseInt(document.getElementById('p-term').value) || 4,
+    lookback: parseInt(document.getElementById('p-lookback').value) || 3,
+    cadence: document.getElementById('p-cadence').value || 'monthly',
+  };
+}
+
+function fmt(v, p='$') {
+  if (v == null) return '—';
+  return p + Math.abs(parseFloat(v)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtSigned(v) {
+  if (v == null) return '—';
+  const n = parseFloat(v);
+  const sign = n < 0 ? '-$' : '$';
+  return sign + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function pct(v) { if (v == null) return '—'; return parseFloat(v).toFixed(1) + '%'; }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function normDec(d) {
+  if (!d) return 'DECLINE';
+  if (d === 'APPROVE' || d === 'ACCEPT') return 'APPROVE';
+  if (d === 'REFER') return 'REFER';
+  return 'DECLINE';
+}
+function decColor(d) {
+  const n = normDec(d);
+  if (n === 'APPROVE') return '#10b981';
+  if (n === 'REFER')   return '#f59e0b';
+  return '#ef4444';
+}
+function siColor(v, mx) {
+  if (v == null) return '#64748b';
+  const r = v/mx;
+  return r >= .6 ? '#10b981' : r >= .3 ? '#f59e0b' : '#ef4444';
+}
+function riskColor(lv) {
+  if (!lv) return '#64748b';
+  const l = lv.toLowerCase();
+  if (l.includes('very high') || l.includes('high')) return '#ef4444';
+  if (l.includes('med') || l.includes('mod')) return '#f59e0b';
+  return '#10b981';
+}
+
+/* ── loading / toast ── */
+function showLoad(txt, sub='') {
+  document.getElementById('load-txt').textContent = txt;
+  document.getElementById('load-sub').textContent = sub;
+  document.getElementById('loading').classList.add('open');
+}
+function hideLoad() { document.getElementById('loading').classList.remove('open'); }
+function toast(msg, type='') {
+  const tc = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  tc.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ══════════════════════════════
+   SINGLE FILE
+══════════════════════════════ */
+function handleSingle(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['json','xml'].includes(ext)) { toast('Please upload a JSON or XML file','err'); return; }
+  scoreSingle(file);
+}
+
+async function scoreSingle(file) {
+  showLoad(`Scoring ${file.name}…`, 'Running pipeline: categorisation + scoring');
+  const p = params();
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('requested_amount', p.amount);
+  fd.append('requested_term', p.term);
+  fd.append('lookback_months', p.lookback);
+  fd.append('pricing_cadence', p.cadence);
+
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(API + '/v1/score-file', {method:'POST', body:fd}),
+      (() => { const f2=new FormData(); f2.append('file',file); return fetch(API+'/v1/categorize-file',{method:'POST',body:f2}); })()
+    ]);
+    const score = await r1.json();
+    const cat   = await r2.json();
+    if (!r1.ok) throw new Error(score.detail || 'Scoring failed');
+
+    singleData = {...score, categorization: cat, filename: file.name, ts: new Date().toLocaleString()};
+    currentAppId = file.name + '_' + Date.now();
+
+    renderSingle(singleData);
+    document.getElementById('nav-single').style.display = '';
+    showView('single', document.getElementById('nav-single'));
+    toast(`Decision: ${score.result.decision}`, score.result.decision === 'APPROVE' ? 'ok' : '');
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  } finally { hideLoad(); }
+}
+
+/* ══════════════════════════════
+   BULK FILE
+══════════════════════════════ */
+function handleBulk(file) {
+  if (!file) return;
+  if (!file.name.endsWith('.zip')) { toast('Please upload a ZIP file','err'); return; }
+  processBulk(file);
+}
+
+async function processBulk(file) {
+  showLoad(`Processing ${file.name}…`, 'This may take a moment for large batches');
+  const p = params();
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('requested_amount', p.amount);
+  fd.append('requested_term', p.term);
+  fd.append('lookback_months', p.lookback);
+  fd.append('pricing_cadence', p.cadence);
+
+  try {
+    const r = await fetch(API + '/v1/bulk-score-zip', {method:'POST', body:fd});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Bulk processing failed');
+
+    bulkRows = data.results || [];
+    document.getElementById('bulk-lbl').textContent = `${file.name} · ${data.files_processed} files processed`;
+    renderBulk();
+    document.getElementById('nav-bulk').style.display = '';
+    showView('bulk', document.getElementById('nav-bulk'));
+    toast(`Processed ${data.files_processed} applications`);
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  } finally { hideLoad(); }
+}
+
+/* ══════════════════════════════
+   RENDER SINGLE
+══════════════════════════════ */
+function renderSingle(data) {
+  const r = data.result;
+  const m = r.metrics;
+  const dec = normDec(r.decision);
+
+  // header
+  document.getElementById('s-filename').textContent = data.filename;
+  document.getElementById('s-meta').textContent = `Scored · ${data.ts} · ${r.lookback_months}m lookback`;
+  const badge = document.getElementById('s-badge');
+  badge.textContent = dec; badge.className = 'db ' + dec;
+
+  // gauge
+  const score = r.score || 0;
+  document.getElementById('g-num').textContent = score;
+  document.getElementById('g-num').style.color = decColor(dec);
+  const dl = document.getElementById('g-dec');
+  dl.textContent = dec; dl.className = 'dec-lbl ' + dec;
+  document.getElementById('g-risk').textContent = r.risk_level || '';
+  document.getElementById('g-amounts').innerHTML =
+    `Max approved: <strong>${fmt(r.max_approved_amount)}</strong> · ${r.max_approved_term||0} months`;
+
+  renderGauge(score, dec);
+
+  // flags
+  const reasons = [...(r.referral_reasons||[]), ...(r.decline_reasons||[])];
+  const fg = document.getElementById('g-flags');
+  if (reasons.length) {
+    fg.innerHTML = `<h5>Flags</h5>` + reasons.map(x=>`<div class="flag-pill">⚠ ${esc(x)}</div>`).join('');
+  } else {
+    fg.innerHTML = `<div class="ok-flag">✓ No adverse flags</div>`;
+  }
+
+  // score breakdown
+  const sb = r.score_breakdown || {};
+  document.getElementById('g-breakdown').innerHTML = [
+    ['Affordability', sb.affordability_score, 30],
+    ['Income Quality', sb.income_quality_score, 25],
+    ['Acct Conduct', sb.account_conduct_score, 25],
+    ['Risk Indicators', sb.risk_indicators_score, 20],
+  ].map(([l,v,mx]) => `<div class="sb-cell">
+    <div class="sl">${l}</div>
+    <div class="sv" style="color:${siColor(v,mx)}">${v??'—'}<span class="sm"> /${mx}</span></div>
+  </div>`).join('');
+
+  // metric cards
+  const aff = m.affordability;
+  const inc = m.income;
+  document.getElementById('m-inc').textContent = fmt(inc.monthly_income);
+  document.getElementById('m-inc-s').innerHTML = `Stable: ${fmt(inc.monthly_stable_income)}<br>Sources: ${(inc.income_sources||[]).join(', ')||'None'}`;
+  const exp = m.expense;
+  const expBreak = exp.essential_breakdown || {};
+  document.getElementById('m-exp').textContent = fmt(exp.monthly_essential_total);
+  document.getElementById('m-exp-s').innerHTML =
+    `Sum of all outgoings excl. discretionary<br>` +
+    `Unpaid ${fmt(expBreak.unpaid||0)} · Other ${fmt(expBreak.other_expenses||0)} · ` +
+    `Discret. ${fmt(expBreak.discretionary||0)} (separate)`;
+  const dbt = m.debt;
+  document.getElementById('m-dbt').textContent = fmt(dbt.monthly_debt_payments);
+  document.getElementById('m-dbt-s').innerHTML = `CC: ${fmt(dbt.monthly_credit_card_payments)}<br>Loans: ${fmt(dbt.monthly_other_loan_payments)}`;
+  const bal = m.balance;
+  const disp = aff.monthly_disposable || 0;
+  const dispEl = document.getElementById('m-disp');
+  dispEl.textContent = fmtSigned(disp);
+  dispEl.style.color = disp < 0 ? 'var(--bad)' : 'var(--ok)';
+  const dispCard = document.getElementById('mc-disp');
+  dispCard.style.borderLeftColor = disp < 0 ? 'var(--bad)' : 'var(--ok)';
+  dispCard.style.background = disp < 0 ? '#fff8f8' : '#f0fdf9';
+  document.getElementById('m-disp-s').innerHTML =
+    `Post-loan: <strong style="color:${aff.post_loan_disposable<0?'var(--bad)':'var(--ok)'}">${fmtSigned(aff.post_loan_disposable)}</strong><br>` +
+    `Avg balance: ${fmt(bal.average_balance)} (OD: ${bal.days_in_overdraft}d)`;
+
+  // detail cards
+  document.getElementById('d-afford').innerHTML = [
+    ['Disposable /mo',    fmtSigned(aff.monthly_disposable),           aff.monthly_disposable<0?'neg':'pos'],
+    ['DTI Ratio',         pct(aff.debt_to_income_ratio),               aff.debt_to_income_ratio>40?'neg':'pos'],
+    ['Essential Ratio',   pct(aff.essential_ratio),                    aff.essential_ratio>100?'wrn':''],
+    ['Post-loan Disp.',   fmtSigned(aff.post_loan_disposable),         aff.post_loan_disposable<0?'neg':'pos'],
+    ['Repayment /mo',     fmt(aff.proposed_repayment),                 ''],
+    ['Repay/Disposable',  pct(aff.repayment_to_disposable_ratio),      aff.repayment_to_disposable_ratio>30?'wrn':'pos'],
+  ].map(([k,v,c]) => `<div class="dr"><span class="k">${k}</span><span class="v ${c}">${v}</span></div>`).join('');
+
+  document.getElementById('d-income').innerHTML = [
+    ['Total (period)',  fmt(inc.total_income)],
+    ['Monthly',        fmt(inc.monthly_income)],
+    ['Stable',         fmt(inc.monthly_stable_income)],
+    ['Gig Economy',    fmt(inc.monthly_gig_income)],
+    ['Stability',      (inc.income_stability_score||0).toFixed(1)+'/100'],
+    ['Regularity',     (inc.income_regularity_score||0).toFixed(1)+'/100'],
+  ].map(([k,v]) => `<div class="dr"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+
+  const risk = m.risk;
+  document.getElementById('d-risk').innerHTML = [
+    ['Gambling Total',      fmt(risk.gambling_total),             risk.gambling_total>0],
+    ['Failed Pmts (45d)',   risk.failed_payments_count_45d,       risk.failed_payments_count_45d>0],
+    ['Bank Charges (90d)',  risk.bank_charges_count_90d,          risk.bank_charges_count_90d>3],
+    ['New Credit (90d)',    risk.new_credit_providers_90d,        risk.new_credit_providers_90d>3],
+    ['Debt Collection',     risk.debt_collection_activity,        risk.debt_collection_activity>0],
+    ['Savings Activity',    fmt(risk.savings_activity||0),        false],
+  ].map(([k,v,bad]) => `<div class="dr"><span class="k">${k}</span><span class="v ${bad?'neg':'pos'}">${v}</span></div>`).join('');
+
+  // category chart
+  if (data.categorization?.summary) renderCatChart(data.categorization.summary);
+
+  // transactions
+  const txns = data.categorization?.results || [];
+  document.getElementById('txn-count').textContent = `(${txns.length} transactions)`;
+  document.getElementById('txn-body').innerHTML = txns.slice(0,30).map(t => {
+    const amt = parseFloat(t.amount||0);
+    return `<tr>
+      <td style="color:var(--muted);white-space:nowrap">${t.date}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.description)}">${esc(t.description)}</td>
+      <td style="font-weight:600;white-space:nowrap;color:${amt<0?'var(--ok)':'var(--bad)'}">
+        ${amt<0?'+':''}${fmt(amt)}
+      </td>
+      <td><span class="cc cc-${t.category}">${t.category}/${t.subcategory}</span></td>
+      <td style="color:var(--muted)">${((t.confidence||0)*100).toFixed(0)}%</td>
+    </tr>`;
+  }).join('');
+
+  // reset UW panel
+  document.getElementById('uw-comment').value = '';
+  document.getElementById('uw-ok').classList.remove('show');
+  document.querySelectorAll('.uw-btns .btn').forEach(b => { b.style.display=''; b.disabled=false; });
+}
+
+/* ── gauge chart ── */
+function renderGauge(score, dec) {
+  const ctx = document.getElementById('gauge').getContext('2d');
+  if (gaugeChart) gaugeChart.destroy();
+  gaugeChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{ datasets:[{ data:[score,100-score], backgroundColor:[decColor(dec),'#f1f5f9'], borderWidth:0 }] },
+    options:{ rotation:-90, circumference:180, cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      animation:{duration:600}
+    }
+  });
+}
+
+/* ── category donut ── */
+const CAT_COLORS = {income:'#10b981',expense:'#f97316',transfer:'#3b82f6',debt:'#ef4444',essential:'#8b5cf6'};
+
+function renderCatChart(summary) {
+  const ctx = document.getElementById('cat-chart').getContext('2d');
+  if (catChartObj) catChartObj.destroy();
+  const byC = summary.by_category || {};
+  const labels = Object.keys(byC);
+  const vals = Object.values(byC);
+  const colors = labels.map(l => CAT_COLORS[l] || '#94a3b8');
+
+  catChartObj = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:vals, backgroundColor:colors, borderWidth:2, borderColor:'#fff', hoverOffset:4 }] },
+    options:{ cutout:'60%',
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label: c => ` ${c.label}: ${c.parsed} txns` } }
+      },
+      animation:{duration:500}
+    }
+  });
+
+  document.getElementById('cat-legend').innerHTML = labels.map((l,i) =>
+    `<div class="li"><div class="ld" style="background:${colors[i]}"></div><span>${l} (${vals[i]})</span></div>`
+  ).join('');
+}
+
+/* ══════════════════════════════
+   UNDERWRITER (single)
+══════════════════════════════ */
+async function submitDecision(dec) {
+  const comment = document.getElementById('uw-comment').value.trim();
+  try {
+    await fetch(API + '/v1/decision', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        app_id: currentAppId,
+        filename: singleData?.filename,
+        uw_decision: dec,
+        comment,
+        submitted_at: new Date().toISOString(),
+        system_decision: singleData?.result?.decision,
+        score: singleData?.result?.score,
+      })
+    });
+  } catch {}
+
+  const ok = document.getElementById('uw-ok');
+  ok.classList.add('show');
+  document.getElementById('uw-ok-txt').textContent = `Decision recorded: ${dec}${comment ? ' · "'+comment.substring(0,50)+(comment.length>50?'…':'"') : ''}`;
+  document.getElementById('uw-ok-time').textContent = new Date().toLocaleString();
+  document.querySelectorAll('.uw-btns .btn').forEach(b => b.style.display='none');
+  toast(`${dec} submitted`, dec==='APPROVE'?'ok':'');
+}
+
+/* ══════════════════════════════
+   BULK RENDER
+══════════════════════════════ */
+function renderBulk() {
+  const counts = {APPROVE:0,REFER:0,DECLINE:0};
+  bulkRows.forEach(r => {
+    const d = r.success && r.result ? normDec(r.result.decision) : 'DECLINE';
+    counts[d]++;
+  });
+  document.getElementById('bc-all').textContent     = bulkRows.length;
+  document.getElementById('bc-approve').textContent = counts.APPROVE;
+  document.getElementById('bc-refer').textContent   = counts.REFER;
+  document.getElementById('bc-decline').textContent = counts.DECLINE;
+  renderBulkTable();
+}
+
+function filterBulk(f, el) {
+  bulkFilter = f;
+  document.querySelectorAll('.sc').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderBulkTable();
+}
+
+function searchBulk(q) { bulkSearch = q.toLowerCase(); renderBulkTable(); }
+
+function renderBulkTable() {
+  bulkDisplayed = bulkRows.filter(r => {
+    if (bulkSearch && !r.filename.toLowerCase().includes(bulkSearch)) return false;
+    if (bulkFilter === 'all') return true;
+    const d = r.success && r.result ? normDec(r.result.decision) : 'DECLINE';
+    return d === bulkFilter;
+  });
+
+  document.getElementById('bulk-body').innerHTML = bulkDisplayed.map((r, i) => {
+    if (!r.success) return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-weight:500">${esc(r.filename)}</td>
+      <td colspan="7" style="color:var(--bad);font-size:12px">Error: ${esc(r.error||'Unknown error')}</td>
+      <td>—</td></tr>`;
+
+    const res = r.result; const m = res.metrics||{};
+    const dec = normDec(res.decision);
+    const score = res.score||0;
+    const pc = score>=60?'hi':score>=40?'mid':'lo';
+    const dti = m.affordability?.debt_to_income_ratio||0;
+    const fp  = m.risk?.failed_payments_count_45d||0;
+    const inc = m.income?.monthly_income||0;
+    const exp = m.expense?.monthly_essential_total||0;
+
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.filename)}">${esc(r.filename)}</td>
+      <td><span class="db ${dec}">${dec}</span></td>
+      <td>
+        <div class="flex aic gap8">
+          <div class="sp ${pc}">${score}</div>
+          <div class="pb-wrap"><div class="pb-fill" style="width:${score}%;background:${decColor(dec)}"></div></div>
+        </div>
+      </td>
+      <td>${fmt(inc)}</td>
+      <td>${fmt(exp)}</td>
+      <td style="font-weight:600;color:${dti>40?'var(--bad)':'var(--ok)'}">${dti.toFixed(1)}%</td>
+      <td style="font-weight:600;color:${fp>0?'var(--bad)':'var(--ok)'}">${fp}</td>
+      <td style="font-size:12px;font-weight:500;color:${riskColor(res.risk_level)}">${res.risk_level||'—'}</td>
+      <td><button class="btn btn-out btn-sm" onclick="openModal(${i})">Review</button></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════
+   BULK REVIEW MODAL
+══════════════════════════════ */
+function openModal(idx) {
+  const r = bulkDisplayed[idx];
+  if (!r || !r.success) return;
+  currentModalFilename = r.filename;
+
+  const res = r.result; const m = res.metrics||{};
+  const dec = normDec(res.decision);
+  const score = res.score||0;
+  const reasons = [...(res.referral_reasons||[]), ...(res.decline_reasons||[])];
+  const aff = m.affordability||{}; const inc = m.income||{};
+  const exp = m.expense||{}; const dbt = m.debt||{};
+  const bal = m.balance||{}; const risk = m.risk||{};
+  const sb = res.score_breakdown||{};
+
+  const decBg   = dec==='APPROVE'?'#ecfdf5':dec==='REFER'?'#fffbeb':'#fef2f2';
+  const decBord = dec==='APPROVE'?'#6ee7b7':dec==='REFER'?'#fcd34d':'#fca5a5';
+
+  document.getElementById('modal-title').textContent = r.filename;
+  document.getElementById('modal-body').innerHTML = `
+    <!-- Banner -->
+    <div style="background:${decBg};border:1px solid ${decBord};border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div class="flex aic gap10">
+        <div style="font-size:38px;font-weight:800;color:${decColor(dec)}">${score}</div>
+        <div>
+          <div style="font-size:20px;font-weight:800;color:${decColor(dec)}">${dec}</div>
+          <div style="font-size:12px;color:var(--muted)">${res.risk_level||''} · Max: ${fmt(res.max_approved_amount)} for ${res.max_approved_term||0} months</div>
+        </div>
+      </div>
+      <div>${reasons.length
+        ? reasons.slice(0,3).map(x=>`<div style="font-size:12px;color:var(--bad);font-weight:500">⚠ ${esc(x)}</div>`).join('')
+        : `<div style="color:var(--ok);font-size:13px;font-weight:500">✓ No adverse flags</div>`
+      }</div>
+    </div>
+
+    <!-- 4 metric mini-cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+      ${[
+        ['Income /mo',      fmt(inc.monthly_income),             `Stable: ${fmt(inc.monthly_stable_income)}`,                         '#10b981'],
+        ['Expenses /mo',    fmt(exp.monthly_essential_total||0), `Unpaid: ${fmt((exp.essential_breakdown||{}).unpaid||0)} + other items`,'#f59e0b'],
+        ['Debt /mo',        fmt(dbt.monthly_debt_payments||0),   `DTI: ${pct(aff.debt_to_income_ratio)}`,                             '#ef4444'],
+        ['Net Disposable',  fmtSigned(aff.monthly_disposable||0),`Post-loan: ${fmtSigned(aff.post_loan_disposable||0)}`,              aff.monthly_disposable<0?'#ef4444':'#10b981'],
+      ].map(([l,v,sub,c]) => `<div style="background:#fff;border-radius:9px;padding:12px 14px;border-left:3px solid ${c};box-shadow:var(--sh1)">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px">${l}</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:2px;color:${c}">${v}</div>
+        <div style="font-size:11px;color:var(--muted)">${sub}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- 3 detail cols -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="background:#fff;border-radius:9px;padding:12px 14px;box-shadow:var(--sh1)">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:8px">💳 Affordability</div>
+        ${[
+          ['Disposable',     fmtSigned(aff.monthly_disposable),     aff.monthly_disposable<0],
+          ['DTI',            pct(aff.debt_to_income_ratio),         aff.debt_to_income_ratio>40],
+          ['Post-loan disp.',fmtSigned(aff.post_loan_disposable),   aff.post_loan_disposable<0],
+          ['Repayment /mo',  fmt(aff.proposed_repayment),           false],
+        ].map(([k,v,bad])=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;border-bottom:1px solid #f8fafc">
+          <span style="color:var(--muted)">${k}</span>
+          <span style="font-weight:600;color:${bad?'var(--bad)':'var(--ok)'}">${v}</span>
+        </div>`).join('')}
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:12px 14px;box-shadow:var(--sh1)">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:8px">📊 Score Breakdown</div>
+        ${[
+          ['Affordability',sb.affordability_score,30],
+          ['Income quality',sb.income_quality_score,25],
+          ['Acct conduct',sb.account_conduct_score,25],
+          ['Risk indicators',sb.risk_indicators_score,20],
+        ].map(([k,v,mx])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;border-bottom:1px solid #f8fafc">
+          <span style="color:var(--muted)">${k}</span>
+          <span style="font-weight:700;color:${siColor(v,mx)}">${v??'—'}<span style="font-weight:400;font-size:10px;color:var(--muted)">/${mx}</span></span>
+        </div>`).join('')}
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:12px 14px;box-shadow:var(--sh1)">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:8px">⚠️ Risk</div>
+        ${[
+          ['Gambling',         fmt(risk.gambling_total||0),       risk.gambling_total>0],
+          ['Failed pmts (45d)',risk.failed_payments_count_45d||0, risk.failed_payments_count_45d>0],
+          ['Bank chgs (90d)',  risk.bank_charges_count_90d||0,    risk.bank_charges_count_90d>3],
+          ['New credit (90d)', risk.new_credit_providers_90d||0,  risk.new_credit_providers_90d>3],
+        ].map(([k,v,bad])=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;border-bottom:1px solid #f8fafc">
+          <span style="color:var(--muted)">${k}</span>
+          <span style="font-weight:600;color:${bad?'var(--bad)':'var(--ok)'}">${v}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Underwriter -->
+    <div style="background:#fff;border-radius:12px;padding:16px 18px;border-top:3px solid var(--border);box-shadow:var(--sh1)">
+      <div style="font-size:13.5px;font-weight:700;margin-bottom:10px">✍️ Underwriter Decision</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:flex-end">
+        <div>
+          <label style="font-size:11.5px;font-weight:500;color:var(--muted);display:block;margin-bottom:3px">Comments / Notes</label>
+          <textarea id="modal-comment" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;resize:none;height:60px;outline:none" placeholder="Add notes…"></textarea>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn btn-ok btn-sm" onclick="submitModalDecision('APPROVE')">✓ Approve</button>
+          <button class="btn btn-warn btn-sm" onclick="submitModalDecision('REFER')">⚡ Refer</button>
+          <button class="btn btn-bad btn-sm" onclick="submitModalDecision('DECLINE')">✗ Decline</button>
+        </div>
+      </div>
+      <div id="modal-uw-ok" style="display:none;margin-top:10px;padding:9px 13px;background:var(--ok-bg);border:1px solid var(--ok-br);border-radius:8px;font-size:13px;font-weight:600;color:#065f46"></div>
+    </div>
+  `;
+
+  document.getElementById('modal').classList.add('open');
+}
+
+async function submitModalDecision(dec) {
+  const comment = document.getElementById('modal-comment').value.trim();
+  try {
+    await fetch(API + '/v1/decision', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        app_id: currentModalFilename + '_modal',
+        filename: currentModalFilename,
+        uw_decision: dec,
+        comment,
+        submitted_at: new Date().toISOString(),
+      })
+    });
+  } catch {}
+
+  const el = document.getElementById('modal-uw-ok');
+  el.style.display = 'block';
+  el.textContent = `✅ Decision recorded: ${dec} · ${new Date().toLocaleTimeString()}`;
+  document.querySelectorAll('#modal-body .btn').forEach(b => b.disabled = true);
+  toast(`${currentModalFilename}: ${dec}`, dec==='APPROVE'?'ok':'');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+/* ══════════════════════════════
+   PRICING
+══════════════════════════════ */
+async function loadPricing() {
+  try {
+    const r = await fetch(API + '/v1/pricing');
+    const d = await r.json();
+    const sched = d.schedule || {};
+    let rows = '';
+    for (const [cadence, tiers] of Object.entries(sched)) {
+      for (const [anchor, rate] of Object.entries(tiers)) {
+        const dailyPct = (parseFloat(rate)*100).toFixed(4);
+        const simplePa = (parseFloat(rate)*365*100).toFixed(2);
+        rows += `<tr style="border-top:1px solid #f1f5f9">
+          <td style="padding:8px 12px;font-weight:600">£${anchor}</td>
+          <td style="padding:8px 12px">${cadence}</td>
+          <td style="padding:8px 12px">${dailyPct}%</td>
+          <td style="padding:8px 12px;font-weight:600">${simplePa}%</td>
+        </tr>`;
+      }
+    }
+    document.getElementById('pricing-body').innerHTML = `
+      <div style="margin-bottom:18px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Loan Range</div>
+        <div style="font-size:22px;font-weight:700">£${d.min_loan_amount} – £${d.max_loan_amount}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead style="background:#f8fafc">
+          <tr>
+            <th style="text-align:left;padding:8px 12px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Amount</th>
+            <th style="text-align:left;padding:8px 12px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Cadence</th>
+            <th style="text-align:left;padding:8px 12px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Daily Rate</th>
+            <th style="text-align:left;padding:8px 12px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Simple PA</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch {
+    document.getElementById('pricing-body').innerHTML =
+      '<p style="color:var(--bad);font-size:13px">Failed to load. Is the API server running?</p>';
+  }
+}
+
+/* ══════════════════════════════
+   DOWNLOADS
+══════════════════════════════ */
+function triggerDownload(content, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type: mime}));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── PDF (html2canvas → jsPDF) ── */
+async function downloadPDF(mode) {
+  const btnId = mode === 'single' ? 'btn-single-pdf' : 'btn-bulk-pdf';
+  const btn = document.getElementById(btnId);
+  const origTxt = btn.textContent;
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+
+  const view = document.querySelector('.view.active');
+  const main = document.querySelector('.main');
+
+  // temporarily unclip so html2canvas sees full height
+  const saved = { mO: main.style.overflow, mH: main.style.maxHeight, bO: document.body.style.overflow, bH: document.body.style.height };
+  main.style.overflow   = 'visible';
+  main.style.maxHeight  = 'none';
+  document.body.style.overflow = 'visible';
+  document.body.style.height   = 'auto';
+
+  try {
+    const canvas = await html2canvas(view, {
+      scale: 1.8,
+      useCORS: true,
+      backgroundColor: '#f1f5f9',
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      width:  view.scrollWidth,
+      height: view.scrollHeight,
+      windowWidth:  view.scrollWidth,
+      windowHeight: view.scrollHeight,
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW  = pageW;
+    const imgH  = (canvas.height * imgW) / canvas.width;
+    const img   = canvas.toDataURL('image/jpeg', 0.92);
+
+    // stamp header on every page
+    const label = mode === 'single'
+      ? `Chirp Underwriting Report — ${singleData?.filename || ''} — ${new Date().toLocaleString()}`
+      : `Chirp Bulk Report — ${document.getElementById('bulk-lbl').textContent} — ${new Date().toLocaleString()}`;
+
+    let yOffset = 0;
+    let page = 0;
+    while (yOffset < imgH) {
+      if (page > 0) pdf.addPage();
+      pdf.setFontSize(7);
+      pdf.setTextColor(150);
+      pdf.text(label, 5, 4);
+      const contentY = 6;
+      const contentH = pageH - contentY;
+      pdf.addImage(img, 'JPEG', 0, contentY - yOffset, imgW, imgH);
+      // clip overflowing content on this page
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, contentY + contentH, pageW, pageH, 'F'); // white mask below
+      yOffset += contentH;
+      page++;
+    }
+
+    const fname = (mode === 'single' ? (singleData?.filename || 'report') : 'chirp_bulk')
+      .replace(/\.[^.]+$/, '') + '_report.pdf';
+    pdf.save(fname);
+    toast('Downloaded ' + fname, 'ok');
+  } catch(e) {
+    toast('PDF failed: ' + e.message, 'err');
+  } finally {
+    main.style.overflow  = saved.mO;
+    main.style.maxHeight = saved.mH;
+    document.body.style.overflow = saved.bO;
+    document.body.style.height   = saved.bH;
+    btn.textContent = origTxt;
+    btn.disabled = false;
+  }
+}
+
+/* ── Single-view CSV ── */
+function downloadSingleCSV() {
+  if (!singleData) return;
+  const r = singleData.result;
+  const m = r.metrics || {};
+  const aff = m.affordability || {}; const inc = m.income || {};
+  const exp = m.expense || {}; const eb = exp.essential_breakdown || {};
+  const dbt = m.debt || {}; const bal = m.balance || {};
+  const risk = m.risk || {}; const sb = r.score_breakdown || {};
+  const reasons = [...(r.referral_reasons||[]), ...(r.decline_reasons||[])].join('; ');
+
+  const lines = [
+    ['CHIRP UNDERWRITING REPORT'],
+    ['Exported At', new Date().toLocaleString()],
+    ['Filename', singleData.filename],
+    [],
+    ['DECISION'],
+    ['Decision', normDec(r.decision)],
+    ['Score', r.score],
+    ['Risk Level', r.risk_level || ''],
+    ['Max Approved Amount', r.max_approved_amount],
+    ['Max Approved Term (months)', r.max_approved_term],
+    ['Flags', reasons],
+    [],
+    ['SCORE BREAKDOWN'],
+    ['Affordability Score', `${sb.affordability_score ?? ''} / 30`],
+    ['Income Quality Score', `${sb.income_quality_score ?? ''} / 25`],
+    ['Account Conduct Score', `${sb.account_conduct_score ?? ''} / 25`],
+    ['Risk Indicators Score', `${sb.risk_indicators_score ?? ''} / 20`],
+    [],
+    ['INCOME'],
+    ['Monthly Income', inc.monthly_income],
+    ['Monthly Stable Income', inc.monthly_stable_income],
+    ['Monthly Gig Income', inc.monthly_gig_income],
+    ['Total Income (period)', inc.total_income],
+    ['Income Sources', (inc.income_sources||[]).join('; ')],
+    ['Income Stability Score', inc.income_stability_score],
+    ['Income Regularity Score', inc.income_regularity_score],
+    [],
+    ['EXPENSES (monthly)'],
+    ['Essential Total', exp.monthly_essential_total],
+    ['Housing', exp.monthly_housing],
+    ['Utilities', exp.monthly_utilities],
+    ['Groceries', exp.monthly_groceries],
+    ['Transport', exp.monthly_transport],
+    ['Food & Dining', eb.food_dining],
+    ['Unpaid', eb.unpaid],
+    ['Other Expenses', eb.other_expenses],
+    ['Discretionary', eb.discretionary],
+    ['Gambling', eb.gambling],
+    [],
+    ['DEBT (monthly)'],
+    ['Total Debt Payments', dbt.monthly_debt_payments],
+    ['Credit Cards', dbt.monthly_credit_card_payments],
+    ['Other Loans', dbt.monthly_other_loan_payments],
+    ['HCSTC Payments', dbt.monthly_hcstc_payments],
+    ['BNPL Payments', dbt.monthly_bnpl_payments],
+    [],
+    ['AFFORDABILITY'],
+    ['Net Disposable Income', aff.monthly_disposable],
+    ['Post-loan Disposable', aff.post_loan_disposable],
+    ['DTI Ratio (%)', aff.debt_to_income_ratio],
+    ['Essential Ratio (%)', aff.essential_ratio],
+    ['Proposed Repayment', aff.proposed_repayment],
+    ['Repayment to Disposable (%)', aff.repayment_to_disposable_ratio],
+    ['Is Affordable', aff.is_affordable],
+    [],
+    ['BALANCE'],
+    ['Average Balance', bal.average_balance],
+    ['Minimum Balance', bal.minimum_balance],
+    ['Maximum Balance', bal.maximum_balance],
+    ['Days in Overdraft', bal.days_in_overdraft],
+    [],
+    ['RISK INDICATORS'],
+    ['Gambling Total', risk.gambling_total],
+    ['Failed Payments (total)', risk.failed_payments_count],
+    ['Failed Payments (45d)', risk.failed_payments_count_45d],
+    ['Bank Charges (total)', risk.bank_charges_count],
+    ['Bank Charges (90d)', risk.bank_charges_count_90d],
+    ['New Credit Providers (90d)', risk.new_credit_providers_90d],
+    ['Debt Collection Activity', risk.debt_collection_activity],
+    ['Savings Activity', risk.savings_activity],
+    [],
+    ['TRANSACTIONS'],
+    ['Date','Description','Amount','Category','Subcategory','Confidence','Match Method','Risk Level'],
+  ];
+
+  const txns = singleData.categorization?.results || [];
+  txns.forEach(t => lines.push([
+    t.date, t.description, t.amount, t.category, t.subcategory,
+    (t.confidence*100).toFixed(0) + '%', t.match_method, t.risk_level || '',
+  ]));
+
+  const csv = lines.map(row =>
+    row.length === 0 ? '' :
+    row.map(v => v == null ? '' : `"${String(v).replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
+
+  const base = singleData.filename.replace(/\.[^.]+$/, '');
+  triggerDownload(csv, `${base}_report.csv`, 'text/csv');
+  toast('Downloaded ' + base + '_report.csv', 'ok');
+}
+
+function downloadBulkJSON() {
+  if (!bulkRows.length) return;
+  const out = {
+    exported_at: new Date().toISOString(),
+    total: bulkRows.length,
+    results: bulkRows,
+  };
+  triggerDownload(JSON.stringify(out, null, 2), 'chirp_bulk_results.json', 'application/json');
+  toast('Downloaded chirp_bulk_results.json');
+}
+
+function downloadBulkCSV() {
+  if (!bulkRows.length) return;
+  const headers = [
+    'Filename','Decision','Score','Risk Level',
+    'Monthly Income','Monthly Expenses','Monthly Debt','Net Disposable',
+    'DTI %','Post-loan Disposable','Proposed Repayment',
+    'Avg Balance','Overdraft Days',
+    'Failed Payments 45d','Bank Charges 90d','New Credit 90d','Gambling Total',
+    'Income Sources','Income Stability','Income Regularity',
+    'Affordability Score','Income Quality Score','Account Conduct Score','Risk Indicators Score',
+    'Max Approved Amount','Max Approved Term','Referral Reasons','Error',
+  ];
+  const csvRows = [headers.join(',')];
+  for (const r of bulkRows) {
+    if (!r.success) {
+      const row = new Array(headers.length).fill('');
+      row[0] = `"${r.filename}"`;
+      row[1] = 'ERROR';
+      row[headers.length - 1] = `"${(r.error||'').replace(/"/g,'""')}"`;
+      csvRows.push(row.join(','));
+      continue;
+    }
+    const res = r.result; const m = res.metrics||{};
+    const aff = m.affordability||{}; const inc = m.income||{};
+    const exp = m.expense||{}; const dbt = m.debt||{};
+    const bal = m.balance||{}; const risk = m.risk||{};
+    const sb = res.score_breakdown||{};
+    const reasons = [...(res.referral_reasons||[]), ...(res.decline_reasons||[])].join('; ');
+    const row = [
+      `"${r.filename}"`,
+      normDec(res.decision),
+      res.score||0,
+      `"${res.risk_level||''}"`,
+      (inc.monthly_income||0).toFixed(2),
+      (exp.monthly_essential_total||0).toFixed(2),
+      (dbt.monthly_debt_payments||0).toFixed(2),
+      (aff.monthly_disposable||0).toFixed(2),
+      (aff.debt_to_income_ratio||0).toFixed(1),
+      (aff.post_loan_disposable||0).toFixed(2),
+      (aff.proposed_repayment||0).toFixed(2),
+      (bal.average_balance||0).toFixed(2),
+      bal.days_in_overdraft||0,
+      risk.failed_payments_count_45d||0,
+      risk.bank_charges_count_90d||0,
+      risk.new_credit_providers_90d||0,
+      (risk.gambling_total||0).toFixed(2),
+      `"${(inc.income_sources||[]).join('; ')}"`,
+      (inc.income_stability_score||0).toFixed(1),
+      (inc.income_regularity_score||0).toFixed(1),
+      sb.affordability_score||0,
+      sb.income_quality_score||0,
+      sb.account_conduct_score||0,
+      sb.risk_indicators_score||0,
+      res.max_approved_amount||0,
+      res.max_approved_term||0,
+      `"${reasons.replace(/"/g,'""')}"`,
+      '',
+    ];
+    csvRows.push(row.join(','));
+  }
+  triggerDownload(csvRows.join('\n'), 'chirp_bulk_results.csv', 'text/csv');
+  toast('Downloaded chirp_bulk_results.csv');
+}
+
+/* ══════════════════════════════
+   INIT
+══════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  checkApi();
+  initDrop('single-zone', handleSingle);
+  initDrop('bulk-zone', handleBulk);
+
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target.id === 'modal') closeModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  setInterval(checkApi, 30000);
+});
+</script>
+</body>
+</html>
