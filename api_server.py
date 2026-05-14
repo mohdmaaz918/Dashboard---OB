@@ -414,7 +414,6 @@
 
 
 
-```python
 """
 Chirp deployment/API handoff service.
 
