@@ -145,11 +145,14 @@ async function scoreSingle(file) {
     singleData = {...score, categorization: cat, filename: file.name, ts: new Date().toLocaleString()};
     currentAppId = file.name + '_' + Date.now();
 
-    renderSingle(singleData);
+    // Switch view first so the user always sees the results page
     document.getElementById('nav-single').style.display = '';
     showView('single', document.getElementById('nav-single'));
+
+    renderSingle(singleData);
     toast(`Decision: ${score.result.decision}`, score.result.decision === 'APPROVE' ? 'ok' : '');
   } catch(e) {
+    console.error('scoreSingle error:', e);
     toast('Error: ' + e.message, 'err');
   } finally { hideLoad(); }
 }
@@ -180,11 +183,12 @@ async function processBulk(file) {
 
     bulkRows = data.results || [];
     document.getElementById('bulk-lbl').textContent = `${file.name} · ${data.files_processed} files processed`;
-    renderBulk();
     document.getElementById('nav-bulk').style.display = '';
     showView('bulk', document.getElementById('nav-bulk'));
+    renderBulk();
     toast(`Processed ${data.files_processed} applications`);
   } catch(e) {
+    console.error('processBulk error:', e);
     toast('Error: ' + e.message, 'err');
   } finally { hideLoad(); }
 }
@@ -237,21 +241,21 @@ function renderSingle(data) {
   </div>`).join('');
 
   // metric cards
-  const aff = m.affordability;
-  const inc = m.income;
+  const aff = m.affordability || {};
+  const inc = m.income       || {};
+  const exp = m.expense      || {};
+  const dbt = m.debt         || {};
+  const bal = m.balance      || {};
   document.getElementById('m-inc').textContent = fmt(inc.monthly_income);
   document.getElementById('m-inc-s').innerHTML = `Stable: ${fmt(inc.monthly_stable_income)}<br>Sources: ${(inc.income_sources||[]).join(', ')||'None'}`;
-  const exp = m.expense;
   const expBreak = exp.essential_breakdown || {};
   document.getElementById('m-exp').textContent = fmt(exp.monthly_essential_total);
   document.getElementById('m-exp-s').innerHTML =
     `Sum of all outgoings excl. discretionary<br>` +
     `Unpaid ${fmt(expBreak.unpaid||0)} · Other ${fmt(expBreak.other_expenses||0)} · ` +
     `Discret. ${fmt(expBreak.discretionary||0)} (separate)`;
-  const dbt = m.debt;
   document.getElementById('m-dbt').textContent = fmt(dbt.monthly_debt_payments);
   document.getElementById('m-dbt-s').innerHTML = `CC: ${fmt(dbt.monthly_credit_card_payments)}<br>Loans: ${fmt(dbt.monthly_other_loan_payments)}`;
-  const bal = m.balance;
   const disp = aff.monthly_disposable || 0;
   const dispEl = document.getElementById('m-disp');
   dispEl.textContent = fmtSigned(disp);
@@ -282,7 +286,7 @@ function renderSingle(data) {
     ['Regularity',     (inc.income_regularity_score||0).toFixed(1)+'/100'],
   ].map(([k,v]) => `<div class="dr"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
 
-  const risk = m.risk;
+  const risk = m.risk || {};
   document.getElementById('d-risk').innerHTML = [
     ['Gambling Total',      fmt(risk.gambling_total),             risk.gambling_total>0],
     ['Failed Pmts (45d)',   risk.failed_payments_count_45d,       risk.failed_payments_count_45d>0],
