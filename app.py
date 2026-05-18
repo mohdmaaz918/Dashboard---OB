@@ -45,6 +45,9 @@ from openbanking_engine.categorisation.engine import (
 # -----------------------------------------------------------------------------
 # Paths
 # -----------------------------------------------------------------------------
+# Note: TransactionCategorizer is also cached inside chirp_engine_runner at
+# module level. This instance is used only by the standalone categorize-file
+# endpoint so it shares the same one-time initialisation cost.
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -155,13 +158,14 @@ def _build_product_config(
     return cfg
 
 
+_categorizer = TransactionCategorizer()
+
+
 def _rows_for_categorisation(
     engine_transactions: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
 
-    categorizer = TransactionCategorizer()
-
-    categorized = categorizer.categorize_transactions_batch(
+    categorized = _categorizer.categorize_transactions_batch(
         engine_transactions
     )
 
@@ -452,11 +456,24 @@ async def score_file(
             lookback_months=max(1, min(12, int(lookback_months))),
         )
 
+        # categorized_transactions is already computed inside the pipeline —
+        # extract it here so the frontend needs only one request
+        cat_list = result.pop("categorized_transactions", [])
+        by_category: Dict[str, int] = {}
+        for item in cat_list:
+            cat = item.get("category", "unknown")
+            by_category[cat] = by_category.get(cat, 0) + 1
+
         return {
             "success": True,
             "filename": name,
             "product_config": cfg,
             "result": result,
+            "categorization": {
+                "total_transactions": len(cat_list),
+                "results": cat_list,
+                "summary": {"total_transactions": len(cat_list), "by_category": by_category},
+            },
         }
 
     except Exception as exc:

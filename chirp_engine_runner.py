@@ -21,6 +21,9 @@ from openbanking_engine.scoring.scoring_engine import ScoringResult
 
 from chirp_product_config import CHIRP_PRODUCT_CONFIG
 
+# Initialised once at import time — avoids re-loading patterns on every request
+_categorizer = TransactionCategorizer()
+
 
 def _chirp_label_match_method(match_method: str) -> str:
     """Engine labels match_method as plaid_*; Chirp data is mapped synthetically, not live Plaid."""
@@ -55,9 +58,8 @@ def run_chirp_scoring_pipeline(
     cfg = product_config if product_config is not None else CHIRP_PRODUCT_CONFIG
     lb = max(1, min(12, int(lookback_months)))
 
-    categorizer = TransactionCategorizer()
-    categorized = categorizer.categorize_transactions_batch(transactions)
-    category_summary = categorizer.get_category_summary(categorized)
+    categorized = _categorizer.categorize_transactions_batch(transactions)
+    category_summary = _categorizer.get_category_summary(categorized)
 
     accounts: List[Dict] = []
     calculator = MetricsCalculator(

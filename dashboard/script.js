@@ -134,15 +134,11 @@ async function scoreSingle(file) {
   fd.append('pricing_cadence', p.cadence);
 
   try {
-    const [r1, r2] = await Promise.all([
-      fetch(API + '/v1/score-file', {method:'POST', body:fd}),
-      (() => { const f2=new FormData(); f2.append('file',file); return fetch(API+'/v1/categorize-file',{method:'POST',body:f2}); })()
-    ]);
-    const score = await r1.json();
-    const cat   = await r2.json();
-    if (!r1.ok) throw new Error(score.detail || 'Scoring failed');
+    const r = await fetch(API + '/v1/score-file', {method:'POST', body:fd});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Scoring failed');
 
-    singleData = {...score, categorization: cat, filename: file.name, ts: new Date().toLocaleString()};
+    singleData = {...data, filename: file.name, ts: new Date().toLocaleString()};
     currentAppId = file.name + '_' + Date.now();
 
     // Switch view first so the user always sees the results page
@@ -150,7 +146,7 @@ async function scoreSingle(file) {
     showView('single', document.getElementById('nav-single'));
 
     renderSingle(singleData);
-    toast(`Decision: ${score.result.decision}`, score.result.decision === 'APPROVE' ? 'ok' : '');
+    toast(`Decision: ${data.result.decision}`, data.result.decision === 'APPROVE' ? 'ok' : '');
   } catch(e) {
     console.error('scoreSingle error:', e);
     toast('Error: ' + e.message, 'err');
