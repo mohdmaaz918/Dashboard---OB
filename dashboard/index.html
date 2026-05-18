@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chirp Credit — Underwriting Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="/dashboard/styles.css">
+</head>
+<body>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🐦</div>
+    <div>
+      <div class="sb-logo-name">Chirp Credit</div>
+      <div class="sb-logo-tag">Underwriting</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Workspace</div>
+    <a class="ni active" onclick="showView('upload',this)">
+      <span class="ni-ic">📤</span>New Assessment
+    </a>
+    <a class="ni" id="nav-single" style="display:none" onclick="showView('single',this)">
+      <span class="ni-ic">👤</span>Single Result
+    </a>
+    <a class="ni" id="nav-bulk" style="display:none" onclick="showView('bulk',this)">
+      <span class="ni-ic">📦</span>Bulk Results
+    </a>
+    <div class="sb-sec">Reference</div>
+    <a class="ni" onclick="showView('pricing',this)">
+      <span class="ni-ic">💰</span>Pricing Schedule
+    </a>
+  </nav>
+  <div class="sb-foot">
+    <strong>Chirp OB Engine v1.0</strong>
+    Requires API server on port 8000
+  </div>
+</aside>
+
+<!-- ══════════ MAIN ══════════ -->
+<main class="main">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-bc" id="breadcrumb"><span>New Assessment</span></div>
+    <div class="flex aic gap8" style="font-size:12px;color:var(--muted)">
+      API&nbsp;<span id="api-dot" class="api-dot"></span><span id="api-lbl" style="font-weight:600">checking…</span>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: UPLOAD ══════ -->
+  <div id="view-upload" class="view active">
+    <div class="ph">
+      <div>
+        <h1>New Assessment</h1>
+        <p>Upload a Chirp Open Banking file to score, categorise, and review</p>
+      </div>
+    </div>
+
+    <div class="upload-grid">
+      <div class="upload-card" id="single-zone">
+        <input type="file" id="single-input" accept=".json,.xml" onchange="handleSingle(this.files[0])">
+        <div class="upload-ic" style="background:#e0f2fe">📄</div>
+        <h3>Single Application</h3>
+        <p>Upload one JSON or XML Open Banking file for a full underwriting decision</p>
+        <div class="flex gap8 mt8" style="flex-wrap:wrap;justify-content:center">
+          <span class="tbadge" style="background:#e0f2fe;color:#0369a1">JSON</span>
+          <span class="tbadge" style="background:#e0f2fe;color:#0369a1">XML</span>
+        </div>
+        <button class="btn btn-pri mt12" style="pointer-events:none">Choose file or drag &amp; drop</button>
+      </div>
+
+      <div class="upload-card" id="bulk-zone">
+        <input type="file" id="bulk-input" accept=".zip" onchange="handleBulk(this.files[0])">
+        <div class="upload-ic" style="background:#fef3c7">📦</div>
+        <h3>Bulk Processing</h3>
+        <p>Upload a ZIP archive containing multiple JSON/XML files — all scored at once</p>
+        <div class="flex gap8 mt8" style="flex-wrap:wrap;justify-content:center">
+          <span class="tbadge" style="background:#fef3c7;color:#92400e">ZIP</span>
+        </div>
+        <button class="btn btn-warn mt12" style="pointer-events:none">Choose ZIP or drag &amp; drop</button>
+      </div>
+    </div>
+
+    <div class="params-card">
+      <h3>⚙️ Scoring Parameters</h3>
+      <div class="pg">
+        <div class="pf">
+          <label>Requested Amount (£)</label>
+          <input type="number" id="p-amount" value="500" min="300" max="1000" step="100">
+        </div>
+        <div class="pf">
+          <label>Term (months)</label>
+          <select id="p-term">
+            <option value="3">3 months</option>
+            <option value="4" selected>4 months</option>
+            <option value="5">5 months</option>
+            <option value="6">6 months</option>
+          </select>
+        </div>
+        <div class="pf">
+          <label>Lookback Period</label>
+          <select id="p-lookback">
+            <option value="1">1 month</option>
+            <option value="2">2 months</option>
+            <option value="3" selected>3 months</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+          </select>
+        </div>
+        <div class="pf">
+          <label>Pricing Cadence</label>
+          <select id="p-cadence">
+            <option value="monthly" selected>Monthly</option>
+            <option value="biweekly">Bi-weekly</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: SINGLE RESULT ══════ -->
+  <div id="view-single" class="view">
+    <div class="rh">
+      <div>
+        <h2 id="s-filename">Application</h2>
+        <p id="s-meta">Scored —</p>
+      </div>
+      <div class="flex aic gap10">
+        <span id="s-badge" class="db"></span>
+        <button class="btn btn-out btn-sm" id="btn-single-pdf" onclick="downloadPDF('single')">⬇ PDF</button>
+        <button class="btn btn-out btn-sm" onclick="downloadSingleCSV()">⬇ CSV</button>
+        <button class="btn btn-out btn-sm" onclick="showView('upload',document.querySelector('[onclick*=upload]'))">↩ New Upload</button>
+      </div>
+    </div>
+
+    <!-- Score + metrics -->
+    <div class="result-top">
+      <div class="score-card">
+        <div class="gauge-wrap">
+          <canvas id="gauge" width="174" height="96"></canvas>
+          <div class="gauge-num" id="g-num">—</div>
+        </div>
+        <div class="dec-lbl" id="g-dec"></div>
+        <div class="risk-lbl" id="g-risk"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px" id="g-amounts"></div>
+        <div class="flag-box" id="g-flags"></div>
+        <div class="sb-grid" id="g-breakdown"></div>
+      </div>
+
+      <div class="metrics-stack">
+        <div class="mc income">
+          <div class="mc-lbl">Monthly Income</div>
+          <div class="mc-val" id="m-inc">—</div>
+          <div class="mc-sub" id="m-inc-s">—</div>
+        </div>
+        <div class="mc expense">
+          <div class="mc-lbl">Monthly Expenses</div>
+          <div class="mc-val" id="m-exp">—</div>
+          <div class="mc-sub" id="m-exp-s">—</div>
+        </div>
+        <div class="mc debt">
+          <div class="mc-lbl">Monthly Debt</div>
+          <div class="mc-val" id="m-dbt">—</div>
+          <div class="mc-sub" id="m-dbt-s">—</div>
+        </div>
+        <div class="mc balance" id="mc-disp">
+          <div class="mc-lbl">Net Disposable /mo</div>
+          <div class="mc-val" id="m-disp">—</div>
+          <div class="mc-sub" id="m-disp-s">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail cards -->
+    <div class="detail-grid">
+      <div class="dc">
+        <h4>💳 Affordability</h4>
+        <div id="d-afford"></div>
+      </div>
+      <div class="dc">
+        <h4>💰 Income Breakdown</h4>
+        <div id="d-income"></div>
+      </div>
+      <div class="dc">
+        <h4>⚠️ Risk Indicators</h4>
+        <div id="d-risk"></div>
+      </div>
+    </div>
+
+    <!-- Charts + transactions -->
+    <div class="bottom-grid">
+      <div class="chart-card">
+        <h4>Transaction Categories</h4>
+        <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
+        <div class="legend" id="cat-legend"></div>
+      </div>
+      <div class="txn-card">
+        <h4 style="display:flex;justify-content:space-between">
+          <span>Recent Transactions</span>
+          <span id="txn-count" style="font-weight:400;color:#94a3b8"></span>
+        </h4>
+        <div class="txn-scroll">
+          <table class="txn-table">
+            <thead>
+              <tr><th>Date</th><th>Description</th><th>Amount</th><th>Category</th><th>Conf</th></tr>
+            </thead>
+            <tbody id="txn-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Underwriter panel -->
+    <div class="uw-panel">
+      <h3>✍️ Underwriter Decision</h3>
+      <div class="uw-grid">
+        <div>
+          <label class="uw-label">Comments / Notes</label>
+          <textarea class="uw-ta" id="uw-comment" placeholder="Add underwriting notes, conditions, or reasons for your decision…"></textarea>
+        </div>
+        <div class="uw-btns">
+          <button class="btn btn-ok" onclick="submitDecision('APPROVE')">✓&nbsp;Approve</button>
+          <button class="btn btn-warn" onclick="submitDecision('REFER')">⚡&nbsp;Refer</button>
+          <button class="btn btn-bad" onclick="submitDecision('DECLINE')">✗&nbsp;Decline</button>
+        </div>
+      </div>
+      <div class="uw-ok" id="uw-ok">
+        <span style="font-size:20px">✅</span>
+        <div>
+          <div id="uw-ok-txt"></div>
+          <div style="font-size:11.5px;font-weight:400;color:#065f46" id="uw-ok-time"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: BULK ══════ -->
+  <div id="view-bulk" class="view">
+    <div class="ph">
+      <div>
+        <h1>Bulk Review</h1>
+        <p id="bulk-lbl">Processing results</p>
+      </div>
+      <button class="btn btn-out btn-sm" id="btn-bulk-pdf" onclick="downloadPDF('bulk')">⬇ PDF</button>
+      <button class="btn btn-out btn-sm" onclick="downloadBulkCSV()">⬇ CSV</button>
+      <button class="btn btn-out btn-sm" onclick="downloadBulkJSON()">⬇ JSON</button>
+      <button class="btn btn-out btn-sm" onclick="showView('upload',document.querySelector('[onclick*=upload]'))">↩ New Upload</button>
+    </div>
+
+    <div class="bulk-summary">
+      <div class="sc all active" onclick="filterBulk('all',this)">
+        <div class="sc-lbl">Total</div>
+        <div class="sc-num" id="bc-all">0</div>
+        <div class="sc-sub">Applications</div>
+      </div>
+      <div class="sc approve" onclick="filterBulk('APPROVE',this)">
+        <div class="sc-lbl">Approve</div>
+        <div class="sc-num" id="bc-approve">0</div>
+        <div class="sc-sub">Eligible</div>
+      </div>
+      <div class="sc refer" onclick="filterBulk('REFER',this)">
+        <div class="sc-lbl">Refer</div>
+        <div class="sc-num" id="bc-refer">0</div>
+        <div class="sc-sub">Manual review</div>
+      </div>
+      <div class="sc decline" onclick="filterBulk('DECLINE',this)">
+        <div class="sc-lbl">Decline</div>
+        <div class="sc-num" id="bc-decline">0</div>
+        <div class="sc-sub">Not eligible</div>
+      </div>
+    </div>
+
+    <div class="bulk-table-card">
+      <div class="bulk-th">
+        <h3>Applications</h3>
+        <input class="srch" type="text" placeholder="🔍 Search filename…" oninput="searchBulk(this.value)">
+      </div>
+      <div style="overflow-x:auto">
+        <table class="apps-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Filename</th><th>Decision</th><th>Score</th>
+              <th>Income/mo</th><th>Expenses/mo</th><th>DTI %</th>
+              <th>Failed (45d)</th><th>Risk</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VIEW: PRICING ══════ -->
+  <div id="view-pricing" class="view">
+    <div class="ph"><div><h1>Pricing Schedule</h1><p>Current Chirp interest rate anchors and tiers</p></div></div>
+    <div style="background:var(--card);border-radius:var(--r3);padding:22px 26px;box-shadow:var(--sh1);max-width:680px" id="pricing-body">
+      <p style="color:var(--muted);font-size:13px">Loading…</p>
+    </div>
+  </div>
+
+</main><!-- /main -->
+
+<!-- ══════════ REVIEW MODAL ══════════ -->
+<div id="modal" class="modal-ov">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3 id="modal-title">Application Review</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-ov" id="loading">
+  <div class="spinner"></div>
+  <p id="load-txt">Processing…</p>
+  <small id="load-sub"></small>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="/dashboard/script.js"></script>
+</body>
+</html>
